@@ -105,16 +105,34 @@ function parse (str) {
  * Compile a string to a template function for the path.
  *
  * @param  {string}             str
+ * @param  {Object}             options
+ * @param  {boolean}            options.softEscaping
  * @return {!function(Object=)}
  */
-function compile (str) {
+function compile (str, options) {
   return tokensToFunction(parse(str))
+}
+
+/**
+ * Encode characters for segment that could cause trouble for parsing.
+ *
+ * @param  {string}
+ * @return {string}
+ */
+function encodeSegment (str) {
+  return encodeURI(str).replace(/[/?#'"]/g, function (c) {
+    return '%' + c.charCodeAt(0).toString(16).toUpperCase()
+  })
 }
 
 /**
  * Expose a method for transforming tokens into the path function.
  */
-function tokensToFunction (tokens) {
+function tokensToFunction (tokens, options) {
+  var escapeFn = options && options.softEscaping
+    ? encodeSegment
+    : encodeURIComponent
+
   // Compile all the tokens into regexps.
   var matches = new Array(tokens.length)
 
@@ -163,7 +181,7 @@ function tokensToFunction (tokens) {
         }
 
         for (var j = 0; j < value.length; j++) {
-          segment = encodeURIComponent(value[j])
+          segment = escapeFn(value[j])
 
           if (!matches[i].test(segment)) {
             throw new TypeError('Expected all "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
@@ -175,7 +193,7 @@ function tokensToFunction (tokens) {
         continue
       }
 
-      segment = encodeURIComponent(value)
+      segment = escapeFn(value)
 
       if (!matches[i].test(segment)) {
         throw new TypeError('Expected "' + token.name + '" to match "' + token.pattern + '", but received "' + segment + '"')
